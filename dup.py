@@ -230,7 +230,7 @@ def db_create(db):
 
     """
 
-        Create the database tables (unconditionnally).
+        Creates the database tables (unconditionnally).
 
         Args:
             db (text): Name of the file used for storing sqlite3 database
@@ -318,7 +318,7 @@ def get_status(cnx):
 
     """
 
-        Get the status of the last process, if it has beend stored, to handle a restart if needed.
+        Gets the status of the last process, if it has beend stored, to handle a restart if needed.
 
         Args:
             cnx (sqlite3.Connection): Connection object
@@ -365,7 +365,7 @@ def checkpoint_db(cnx, last_step, last_id = None, commit = False):
 
     """
 
-        Set the status of the current process by storing the name of the last well-executed step.
+        Sets the status of the current process by storing the name of the last well-executed step.
 
         Args:
             cnx (sqlite3.Connection): Connection object
@@ -396,7 +396,7 @@ def directory_lookup(cnx, basepath):
 
     """
 
-        Look (hierarchically) for all files within the folder structure, and store the path and the 
+        Looks (hierarchically) for all files within the folder structure, and stores the path and the 
         name of each file. No file access is made (to save time).
 
         Args:
@@ -498,9 +498,9 @@ def filelist_pre_hash(cnx, algo):
 
     """
 
-        Calculating a "pre-hash" that is a hash calculated on the first bytes of the file. 
+        Calculates a "pre-hash" that is a hash calculated on the first bytes of the file. 
 
-        Liste to me well: hash calculation can be long for... long files. Here we make a first *selection*
+        Listen to me well: hash calculation can be long for... long files. Here we make a first *selection*
         where we eliminate files without duplicates. As a matter of fact, if the hash of the first
         bytes are not equals, it means that the files are... not equals for sure!
 
@@ -608,7 +608,7 @@ def filelist_pre_hash(cnx, algo):
 def pre_duplicates_rehash(cnx):
 
     """
-        Recalculating full hash for duplicate candidates (files having the same pre-hash). You can use here
+        Recalculates full hash for duplicate candidates (files having the same pre-hash). You can use here
         the hash function you want but consider "md5" as the best ratio entropy/execution time. The updates
         are made directly in the database.
 
@@ -694,10 +694,10 @@ def pre_duplicates_rehash(cnx):
 #    ====================================================================
 #
 
-def duplicates_select(cnx):
+def duplicates_update(cnx):
 
     """
-        We select the *real* duplicates (= files having the same *full* hash), and we mark them into the DB.
+        Selects the *real* duplicates (= files having the same *full* hash), and marks them into the DB.
 
         Args:
             cnx (sqlite3.Connection): Connection object
@@ -735,7 +735,37 @@ def duplicates_select(cnx):
     last_step = "pre_duplicates_rehash"
     last_id = "all"
 
-    checkpoint_db(cnx, "duplicates_select", "all", commit = True)
+    checkpoint_db(cnx, "duplicates_update", "all", commit = True)
+
+    # Results...
+
+    nb , size = duplicates_select(cnx)
+
+    # End time
+    chrono.stop()
+
+    return chrono.elapsed(), nb, size
+
+
+#
+#    ====================================================================
+#     Selecting "true" duplicates (= having the same hash ;)
+#    ====================================================================
+#
+
+def duplicates_select(cnx):
+
+    """
+
+        Returns infos about files having duplicates in the database.
+
+        Args:
+            cnx (sqlite3.Connection): Connection object
+
+        Returns:
+            nb (int): The number of files having duplicates
+            size (int): The size of all files that have duplicates
+    """
 
     # Nb of files that have duplicates
     # ---
@@ -747,10 +777,7 @@ def duplicates_select(cnx):
     r = cnx.execute("SELECT SUM(size) FROM filelist WHERE has_duplicate = True")
     size = r.fetchone()[0] 
 
-    # End time
-    chrono.stop()
-
-    return chrono.elapsed(), nb, size
+    return nb, size
 
 
 #
@@ -859,8 +886,15 @@ else:
 
 if (next_step | (last_step == "pre_duplicates_rehash")):
     
-    t, nb_dup, size_dup = duplicates_select(cnx)
-    print("{} files have duplicates, total size of duplicate files is {}.".format(nb_dup, utils.humanbytes(size_dup)))
+    t, nb_dup, size_dup = duplicates_update(cnx)
+
+else:
+
+    nb_dup, size_dup = duplicates_select(cnx)
+
+# Result summary
+# ---
+print("{} files have duplicates, total size of duplicate files is {}.".format(nb_dup, utils.humanbytes(size_dup)))
 
 
 # Closing database
