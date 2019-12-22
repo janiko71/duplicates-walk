@@ -14,7 +14,9 @@ import utils
 # REMEMBER : Trust No-One. Filter and sanitize all fields and entries
 #
 
-global restart, last_step, last_id
+restart = False
+last_step = None
+last_id = None
 
 
 def exit_handler(signum, frame):
@@ -423,6 +425,11 @@ def directory_lookup(cnx, basepath):
     if (basepath == ""):
         basepath = "."
 
+    # As there's no restart point here (we restart the loop), we need to reset the filelist table
+
+    cnx.execute("DELETE FROM filelist")
+    cnx.commit()
+
     #
     # ---> Files discovering. Thanks to Python, we just need to call an existing function...
     #
@@ -449,7 +456,7 @@ def directory_lookup(cnx, basepath):
             # Displaying progression and commit (occasionnaly)
 
             if ((nb % 100) == 0):
-                print("#{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
+                print("Discovering #{} files ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
                 if ((nb % 1000) == 0):
                     checkpoint_db(cnx, "directory_lookup", commit = True)
 
@@ -529,7 +536,11 @@ def filelist_pre_hash(cnx, algo):
     
     nb = 0
     
-    r = cnx.execute("SELECT * FROM filelist")
+    if (last_step != "filelist_pre_hash"):
+        r = cnx.execute("SELECT * FROM filelist ORDER BY fid")
+    else:
+        r = cnx.execute("SELECT * FROM filelist WHERE fid >? ORDER BY fid", (last_id,))
+        print("Restart from fid {}".format(last_id))
 
     for row in r:
 
@@ -574,7 +585,7 @@ def filelist_pre_hash(cnx, algo):
         # Displaying progression and commit (occasionnaly)
 
         if ((nb % 100) == 0):
-            print("#{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
+            print("Quick hash computing #{} files ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
             if ((nb % 1000) == 0):
                 checkpoint_db(cnx, "filelist_pre_hash", fid, commit = True)
 
@@ -624,8 +635,12 @@ def pre_duplicates_rehash(cnx):
     
     nb = 0
 
-    res = cnx.execute("SELECT pre_hash FROM filelist GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY pre_hash")
-    
+    if (last_step != "pre_duplicates_rehash"):
+        res = cnx.execute("SELECT pre_hash FROM filelist GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY fid")
+    else:
+        res = cnx.execute("SELECT pre_hash FROM filelist WHERE fid >? GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY fid", (last_id,))
+        print("Restart from fid {}".format(last_id))
+
     for h in res:
 
         #
@@ -656,7 +671,7 @@ def pre_duplicates_rehash(cnx):
             # Displaying progression and commit (occasionnaly)
 
             if ((nb % 100) == 0):
-                print("#{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
+                print("Rehashing duplicate candidates #{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
                 if ((nb % 1000) == 0):
                     checkpoint_db(cnx, "pre_duplicates_rehash", fid, commit = True)
         
@@ -781,6 +796,10 @@ with open("filelist.txt","r") as f:
 print(basepath)
 print("Default blocksize for this system is {} bytes".format(io.DEFAULT_BUFFER_SIZE))
 
+#
+# ---> DB connection
+#
+
 cnx = db_connect(db, restart)
 
 last_step, last_id = get_status(cnx)
@@ -789,7 +808,7 @@ next_step = False
 
 # Looking for files
 # ---
-if (last_step == None):
+if (last_step == None) | ((last_step == "directory_lookup") & (last_id == "in progress")):
 
     t, nb = directory_lookup(cnx, basepath)
     print("Files lookup duration: {:.2f} sec for {} files.".format(t, nb))
@@ -803,10 +822,12 @@ else:
 # Calculating pre hash (quick hash on first bytes)
 # ---
 
-if (next_step | (last_step == "directory_lookup")):
+if (next_step | 
+    ((last_step == "directory_lookup") & (last_id == "all"))|
+    ((last_step == "filelist_pre_hash") & (last_id != "all"))):
 
     t = filelist_pre_hash(cnx, 'md5')
-    print("Pre-hash calculation duration: {:.2f} sec.".format(t))
+    print("Pre-hash calculation duration: {:.2f} sec.          ".format(t))
     next_step = True
 
 else:
@@ -824,7 +845,9 @@ print("Size of all files: {} bytes".format(size))
 # Recomputing hashes for duplicates candidates
 # ---
 
-if (next_step | (last_step == "filelist_pre_hash")):
+if (next_step | 
+    ((last_step == "filelist_pre_hash") & (last_id == "all")) |
+    ((last_step == "pre_duplicates_rehash") & (last_id != "all"))):
 
     t, nb = pre_duplicates_rehash(cnx)
     print("Pre-duplicates rehashing duration: {:.2f} sec. for {} records.".format(t, nb))
