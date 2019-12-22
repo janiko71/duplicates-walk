@@ -2,6 +2,7 @@ import io, os, sys
 import hashlib, binascii
 import time
 import sqlite3
+import signal
 
 import utils
 
@@ -13,9 +14,16 @@ import utils
 # REMEMBER : Trust No-One. Filter and sanitize all fields and entries
 #
 
-global restart
+global restart, last_step, last_id
 
-    
+
+def exit_handler(signum, frame):
+
+    print()
+    print("Normal exit from KeyboardInterrupt (CTRL+C)")
+    checkpoint_db(cnx, last_step, last_id, commit = True)
+    exit(0)
+
 #
 #    ====================================================================
 #     File hash calculation (single file)
@@ -289,7 +297,7 @@ def db_create(db):
     # --- > Default values
 
     cnx.execute("INSERT INTO params VALUES ('last_step','')")
-    cnx.execute("INSERT INTO params VALUES ('last_fid','')")
+    cnx.execute("INSERT INTO params VALUES ('last_id','')")
     cnx.execute("INSERT INTO params VALUES ('last_path','')")
     cnx.execute("INSERT INTO params VALUES ('last_file','')")
 
@@ -320,13 +328,29 @@ def get_status(cnx):
 
     res = cnx.execute("SELECT value FROM params WHERE key='last_step'").fetchone()
 
-    if (res == None):
-        return None
+    #
+    # ---> Get last step
+    #
 
-    if (res[0] == ''):
-        return None
+    if (res != None):
+        if (res[0] == ''):
+            res= None
+        else:
+            res = res[0]
 
-    return res[0]
+    #
+    # ---> Get last ID
+    # 
+
+    lid = cnx.execute("SELECT value FROM params WHERE key='last_id'").fetchone()
+
+    if (lid != None):
+        if (lid[0] == ''):
+            lid= None
+        else:
+            lid = lid[0]
+
+    return res, lid
 
 
 #
@@ -335,7 +359,7 @@ def get_status(cnx):
 #    ====================================================================
 #
 
-def set_status(cnx, last_step):
+def checkpoint_db(cnx, last_step, last_id = None, commit = False):
 
     """
 
@@ -348,11 +372,13 @@ def set_status(cnx, last_step):
         Returns:
             nothing
 
-
     """
 
     cnx.execute("UPDATE params SET value=? WHERE key='last_step'", (last_step,))
-    cnx.commit()
+    cnx.execute("UPDATE params SET value=? WHERE key='last_id'", (last_id,))
+
+    if (commit):
+        cnx.commit()
 
     return 
 
@@ -380,6 +406,8 @@ def directory_lookup(cnx, basepath):
             nb_to_process (int): The number of files we have to process        
 
     """
+
+    global last_step, last_id
 
     # Start time
 
@@ -413,12 +441,17 @@ def directory_lookup(cnx, basepath):
             cnx.execute("INSERT INTO filelist(path, name, access_denied)\
                             VALUES (?, ?, ?)",(root, name, False))
 
+            # Checkpoint
+
+            last_step = "directory_lookup"
+            last_id = "in progress"
+
             # Displaying progression and commit (occasionnaly)
 
             if ((nb % 100) == 0):
                 print("#{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
                 if ((nb % 1000) == 0):
-                    cnx.commit()
+                    checkpoint_db(cnx, "directory_lookup", commit = True)
 
             """
             except PermissionError:
@@ -436,7 +469,7 @@ def directory_lookup(cnx, basepath):
     # ---> Last commit
     #
 
-    cnx.commit()
+    checkpoint_db(cnx, "directory_lookup", "all", commit = True)
 
     # End time
     chrono.stop()
@@ -445,9 +478,6 @@ def directory_lookup(cnx, basepath):
 
     r = cnx.execute("SELECT COUNT(*) FROM filelist")
     nb_to_process = r.fetchone()[0]
-
-    # Dealing restart information
-    set_status(cnx, "directory_lookup")
         
     return chrono.elapsed(), nb_to_process
 
@@ -486,6 +516,8 @@ def filelist_pre_hash(cnx, algo):
 
     """
 
+    global last_step, last_id
+
     # Start time
 
     chrono = utils.Chrono()
@@ -513,6 +545,11 @@ def filelist_pre_hash(cnx, algo):
             h, _ = file_hash_calc(filepath, algo)
             cnx.execute("UPDATE filelist SET size = ?, pre_hash = ? WHERE fid = (?)", (file_size, h, fid))
 
+            # Checkpoint
+
+            last_step = "filelist_pre_hash"
+            last_id = fid
+
         except PermissionError:
 
             #
@@ -539,16 +576,16 @@ def filelist_pre_hash(cnx, algo):
         if ((nb % 100) == 0):
             print("#{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
             if ((nb % 1000) == 0):
-                cnx.commit()
+                checkpoint_db(cnx, "filelist_pre_hash", fid, commit = True)
 
-    # Commit last updates
-    cnx.commit()
+    #
+    #  ---> Last commit
+    #
+
+    checkpoint_db(cnx, "filelist_pre_hash", "all", commit = True)
 
     # End time
     chrono.stop()
-
-    # Dealing restart information
-    set_status(cnx, "filelist_pre_hash")
 
     return chrono.elapsed()
 
@@ -573,6 +610,8 @@ def pre_duplicates_rehash(cnx):
         Returns:
             t (time): The execution time of this function
     """
+
+    global last_step, last_id
 
     # Start time
 
@@ -607,6 +646,11 @@ def pre_duplicates_rehash(cnx):
 
             cnx.execute("UPDATE filelist set hash = ? WHERE fid = (?)", (full_hash, fid))
 
+            # Checkpoint
+            
+            last_step = "pre_duplicates_rehash"
+            last_id = fid
+
             nb = nb + 1
 
             # Displaying progression and commit (occasionnaly)
@@ -614,16 +658,16 @@ def pre_duplicates_rehash(cnx):
             if ((nb % 100) == 0):
                 print("#{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
                 if ((nb % 1000) == 0):
-                    cnx.commit()
+                    checkpoint_db(cnx, "pre_duplicates_rehash", fid, commit = True)
         
-    # Commit last updates
-    cnx.commit()
+    #
+    #  ---> Last commit
+    #
+    
+    checkpoint_db(cnx, "pre_duplicates_rehash", "all", commit = True)
 
     # End time
     chrono.stop()
-
-    # Dealing restart information
-    set_status(cnx, "pre_duplicates_rehash")    
 
     return chrono.elapsed(), nb
 
@@ -648,6 +692,8 @@ def duplicates_select(cnx):
             size (int): The size of all files that have duplicates
     """
 
+    global last_step, last_id
+
     # Start time
 
     chrono = utils.Chrono()
@@ -663,8 +709,18 @@ def duplicates_select(cnx):
 
     cnx.execute("UPDATE filelist SET has_duplicate = True WHERE hash IN \
         (SELECT hash FROM filelist WHERE hash NOT NULL GROUP BY hash HAVING COUNT(hash) > 1 ORDER BY hash)")
+        
+    #
+    #  ---> Last commit
+    #
+    
 
-    cnx.commit()
+    # Checkpoint
+    
+    last_step = "pre_duplicates_rehash"
+    last_id = "all"
+
+    checkpoint_db(cnx, "duplicates_select", "all", commit = True)
 
     #res = cnx.execute("SELECT * FROM filelist WHERE has_duplicate = True ORDER BY hash")
 
@@ -684,9 +740,6 @@ def duplicates_select(cnx):
     # End time
     chrono.stop()
 
-    # Dealing restart information
-    set_status(cnx, "duplicates_select")
-
     return chrono.elapsed(), nb, size
 
 
@@ -698,12 +751,26 @@ def duplicates_select(cnx):
 #    ====================================================================
 #
 
+# 
+# ---> Check for 'restart' argument
+#
+
 arguments = utils.check_arguments(sys.argv)
 
 if ("restart" in arguments):
     restart = True
 else:
     restart = False
+
+#
+# ---> Catch the exit signal to commit the database with last checkpoint
+#
+
+signal.signal(signal.SIGINT, exit_handler)
+
+#
+# ---> Some inits
+#
 
 db = 'walk.db'
 algo = 'md5'
@@ -716,7 +783,8 @@ print("Default blocksize for this system is {} bytes".format(io.DEFAULT_BUFFER_S
 
 cnx = db_connect(db, restart)
 
-last_step = get_status(cnx)
+last_step, last_id = get_status(cnx)
+print("Last step: {}, last ID: {}".format(last_step, last_id))
 next_step = False
 
 # Looking for files
