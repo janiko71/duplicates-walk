@@ -341,7 +341,7 @@ def get_status(cnx):
             res = res[0]
 
     #
-    # ---> Get last ID
+    # ---> Get last ID (fid or hash)
     # 
 
     lid = cnx.execute("SELECT value FROM params WHERE key='last_id'").fetchone()
@@ -412,12 +412,10 @@ def directory_lookup(cnx, basepath):
     global last_step, last_id
 
     # Start time
-
     chrono = utils.Chrono()
     chrono.start()
 
     # Nb of files init
-    
     nb = 0
 
     # Filepath init
@@ -526,7 +524,6 @@ def filelist_pre_hash(cnx, algo):
     global last_step, last_id
 
     # Start time
-
     chrono = utils.Chrono()
     chrono.start()
 
@@ -625,7 +622,6 @@ def pre_duplicates_rehash(cnx):
     global last_step, last_id
 
     # Start time
-
     chrono = utils.Chrono()
     chrono.start()
 
@@ -636,8 +632,13 @@ def pre_duplicates_rehash(cnx):
     nb = 0
 
     if (last_step != "pre_duplicates_rehash"):
+
+        # Here we start from the beginning and read all the files in DB
         res = cnx.execute("SELECT pre_hash FROM filelist GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY fid")
+
     else:
+
+        # Checkpoint/restart : we restart from last updated record (fid)
         res = cnx.execute("SELECT pre_hash FROM filelist WHERE fid >? GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY fid", (last_id,))
         print("Restart from fid {}".format(last_id))
 
@@ -728,7 +729,6 @@ def duplicates_select(cnx):
     #
     #  ---> Last commit
     #
-    
 
     # Checkpoint
     
@@ -736,11 +736,6 @@ def duplicates_select(cnx):
     last_id = "all"
 
     checkpoint_db(cnx, "duplicates_select", "all", commit = True)
-
-    #res = cnx.execute("SELECT * FROM filelist WHERE has_duplicate = True ORDER BY hash")
-
-    #for row in res:
-    #    print(row)
 
     # Nb of files that have duplicates
     # ---
@@ -794,7 +789,7 @@ with open("filelist.txt","r") as f:
     basepath = f.read()
 
 print(basepath)
-print("Default blocksize for this system is {} bytes".format(io.DEFAULT_BUFFER_SIZE))
+print("Default blocksize for this system is {} bytes.".format(io.DEFAULT_BUFFER_SIZE))
 
 #
 # ---> DB connection
@@ -808,6 +803,7 @@ next_step = False
 
 # Looking for files
 # ---
+
 if (last_step == None) | ((last_step == "directory_lookup") & (last_id == "in progress")):
 
     t, nb = directory_lookup(cnx, basepath)
@@ -837,10 +833,11 @@ else:
 
 # Calculate size of all files
 # ---
+
 res = cnx.execute("select sum(size) FROM filelist")
 size = res.fetchone()[0]
 
-print("Size of all files: {} bytes".format(size))
+print("Size of all files: {}".format(utils.humanbytes(size)))
 
 # Recomputing hashes for duplicates candidates
 # ---
@@ -863,7 +860,7 @@ else:
 if (next_step | (last_step == "pre_duplicates_rehash")):
     
     t, nb_dup, size_dup = duplicates_select(cnx)
-    print("{} files have duplicates, total size of duplicate files is {} bytes".format(nb_dup, size_dup))
+    print("{} files have duplicates, total size of duplicate files is {}.".format(nb_dup, utils.humanbytes(size_dup)))
 
 
 # Closing database
