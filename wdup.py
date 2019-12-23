@@ -4,7 +4,7 @@ import time
 import sqlite3
 import signal
 
-from tkinter import *
+import wtk
 
 import utils
 
@@ -782,6 +782,116 @@ def duplicates_select(cnx):
     return nb, size
 
 
+
+#
+#    ====================================================================
+#     Main search (lookup files, calculate pre-hash, determining duplicates
+#    ====================================================================
+#
+
+def main_search(db, algo, restart):
+    
+    """
+
+        Main search functions, in 3 steps:
+
+            - Looks for all files within the selected directories
+            - Calculates the quick hash for all these files
+            - Re-calculate the hash on the full content for duplicate candidates
+
+    """
+    
+    with open("filelist.txt","r") as f:
+        basepath = f.read()
+
+    print(basepath)
+    print("Default blocksize for this system is {} bytes.".format(io.DEFAULT_BUFFER_SIZE))
+
+    #
+    # ---> DB connection
+    #
+
+    cnx = db_connect(db, restart)
+
+    last_step, last_id = get_status(cnx)
+    print("Last step: {}, last ID: {}".format(last_step, last_id))
+    next_step = False
+
+    # Looking for files
+    # ---
+
+    if (last_step == None) | ((last_step == "directory_lookup") & (last_id == "in progress")):
+
+        t, nb = directory_lookup(cnx, basepath)
+        print("Files lookup duration: {:.2f} sec for {} files.".format(t, nb))
+        next_step = True
+
+    else:
+
+        print("Files lookup already done.")
+
+
+    # Calculating pre hash (quick hash on first bytes)
+    # ---
+
+    if (next_step | 
+        ((last_step == "directory_lookup") & (last_id == "all"))|
+        ((last_step == "filelist_pre_hash") & (last_id != "all"))):
+
+        t = filelist_pre_hash(cnx, 'md5')
+        print("Pre-hash calculation duration: {:.2f} sec.          ".format(t))
+        next_step = True
+
+    else:
+
+        print("Pre-hash calculation already done.")
+
+
+    # Calculate size of all files
+    # ---
+
+    res = cnx.execute("select sum(size) FROM filelist")
+    size = res.fetchone()[0]
+
+    print("Size of all files: {}".format(utils.humanbytes(size)))
+
+    # Recomputing hashes for duplicates candidates
+    # ---
+
+    if (next_step | 
+        ((last_step == "filelist_pre_hash") & (last_id == "all")) |
+        ((last_step == "pre_duplicates_rehash") & (last_id != "all"))):
+
+        t, nb = pre_duplicates_rehash(cnx)
+        print("Pre-duplicates rehashing duration: {:.2f} sec. for {} records.".format(t, nb))
+        next_step = True
+
+    else:
+
+        print("Pre-duplicates rehashing already done.")
+
+    # Dealing with duplicates
+    # ---
+
+    if (next_step | (last_step == "pre_duplicates_rehash")):
+        
+        t, nb_dup, size_dup = duplicates_update(cnx)
+
+    else:
+
+        nb_dup, size_dup = duplicates_select(cnx)
+
+    # Result summary
+    # ---
+    print("{} files have duplicates, total size of duplicate files is {}.".format(nb_dup, utils.humanbytes(size_dup)))
+
+
+    # Closing database
+    # ---
+
+    cnx.close()
+
+
 #
 #    ====================================================================
 #
@@ -814,92 +924,30 @@ signal.signal(signal.SIGINT, exit_handler)
 db = 'walk.db'
 algo = 'md5'
 
-with open("filelist.txt","r") as f:
-    basepath = f.read()
-
-print(basepath)
-print("Default blocksize for this system is {} bytes.".format(io.DEFAULT_BUFFER_SIZE))
-
 #
-# ---> DB connection
+# ---> Do it
 #
 
-cnx = db_connect(db, restart)
+main_search(db, algo, restart)
 
-last_step, last_id = get_status(cnx)
-print("Last step: {}, last ID: {}".format(last_step, last_id))
-next_step = False
-
-# Looking for files
-# ---
-
-if (last_step == None) | ((last_step == "directory_lookup") & (last_id == "in progress")):
-
-    t, nb = directory_lookup(cnx, basepath)
-    print("Files lookup duration: {:.2f} sec for {} files.".format(t, nb))
-    next_step = True
-
-else:
-
-    print("Files lookup already done.")
+#
+# ---> Window stuff
+#
 
 
-# Calculating pre hash (quick hash on first bytes)
-# ---
+myapp = wtk.App()
 
-if (next_step | 
-    ((last_step == "directory_lookup") & (last_id == "all"))|
-    ((last_step == "filelist_pre_hash") & (last_id != "all"))):
+#
+# Displays Application window
+#
 
-    t = filelist_pre_hash(cnx, 'md5')
-    print("Pre-hash calculation duration: {:.2f} sec.          ".format(t))
-    next_step = True
+myapp.master.title("Duplicates Walk")
+myapp.master.geometry("1350x675+70+50")
+myapp.master.maxsize(1800, 880)
+myapp.master.resizable(1800, 880)
 
-else:
+#
+# IHM Loop
+#
 
-    print("Pre-hash calculation already done.")
-
-
-# Calculate size of all files
-# ---
-
-res = cnx.execute("select sum(size) FROM filelist")
-size = res.fetchone()[0]
-
-print("Size of all files: {}".format(utils.humanbytes(size)))
-
-# Recomputing hashes for duplicates candidates
-# ---
-
-if (next_step | 
-    ((last_step == "filelist_pre_hash") & (last_id == "all")) |
-    ((last_step == "pre_duplicates_rehash") & (last_id != "all"))):
-
-    t, nb = pre_duplicates_rehash(cnx)
-    print("Pre-duplicates rehashing duration: {:.2f} sec. for {} records.".format(t, nb))
-    next_step = True
-
-else:
-
-    print("Pre-duplicates rehashing already done.")
-
-# Dealing with duplicates
-# ---
-
-if (next_step | (last_step == "pre_duplicates_rehash")):
-    
-    t, nb_dup, size_dup = duplicates_update(cnx)
-
-else:
-
-    nb_dup, size_dup = duplicates_select(cnx)
-
-# Result summary
-# ---
-print("{} files have duplicates, total size of duplicate files is {}.".format(nb_dup, utils.humanbytes(size_dup)))
-
-
-# Closing database
-# ---
-
-cnx.close()
+myapp.mainloop()
