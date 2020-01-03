@@ -6,6 +6,8 @@ filelist.txt
 
 # Test
 test*.py
+tests/
+qt/__pycache__/
 
 # Database
 *.db

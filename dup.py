@@ -4,8 +4,6 @@ import time
 import sqlite3
 import signal
 
-from tkinter import *
-
 import utils
 
 #
