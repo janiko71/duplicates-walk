@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main-window.ui'
+## Form generated from reading UI file 'mainwindow.ui'
 ##
 ## Created by: Qt User Interface Compiler version 5.14.0
 ##
@@ -19,7 +19,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(799, 514)
+        MainWindow.resize(815, 531)
         sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -40,6 +40,8 @@ class Ui_MainWindow(object):
         self.actionNouvelle_recherche.setObjectName(u"actionNouvelle_recherche")
         self.actionOptions = QAction(MainWindow)
         self.actionOptions.setObjectName(u"actionOptions")
+        self.actionSelection = QAction(MainWindow)
+        self.actionSelection.setObjectName(u"actionSelection")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         sizePolicy1 = QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
@@ -56,16 +58,16 @@ class Ui_MainWindow(object):
         self.tabWidget.setObjectName(u"tabWidget")
         sizePolicy.setHeightForWidth(self.tabWidget.sizePolicy().hasHeightForWidth())
         self.tabWidget.setSizePolicy(sizePolicy)
-        self.tab_options = QWidget()
-        self.tab_options.setObjectName(u"tab_options")
+        self.tab_search = QWidget()
+        self.tab_search.setObjectName(u"tab_search")
         sizePolicy2 = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.tab_options.sizePolicy().hasHeightForWidth())
-        self.tab_options.setSizePolicy(sizePolicy2)
-        self.horizontalLayout_3 = QHBoxLayout(self.tab_options)
+        sizePolicy2.setHeightForWidth(self.tab_search.sizePolicy().hasHeightForWidth())
+        self.tab_search.setSizePolicy(sizePolicy2)
+        self.horizontalLayout_3 = QHBoxLayout(self.tab_search)
         self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
-        self.treeview_os_directories = QTreeView(self.tab_options)
+        self.treeview_os_directories = QTreeView(self.tab_search)
         self.treeview_os_directories.setObjectName(u"treeview_os_directories")
         self.treeview_os_directories.setMinimumSize(QSize(300, 200))
         self.treeview_os_directories.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -73,15 +75,17 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_3.addWidget(self.treeview_os_directories)
 
-        self.listView = QListView(self.tab_options)
-        self.listView.setObjectName(u"listView")
-        self.listView.setMinimumSize(QSize(400, 200))
+        self.listWidget_selected_directories = QListWidget(self.tab_search)
+        self.listWidget_selected_directories.setObjectName(u"listWidget_selected_directories")
+        self.listWidget_selected_directories.setMinimumSize(QSize(400, 200))
 
-        self.horizontalLayout_3.addWidget(self.listView)
+        self.horizontalLayout_3.addWidget(self.listWidget_selected_directories)
 
-        self.tabWidget.addTab(self.tab_options, "")
+        self.tabWidget.addTab(self.tab_search, "")
         self.tab_results = QWidget()
         self.tab_results.setObjectName(u"tab_results")
+        self.horizontalLayout = QHBoxLayout(self.tab_results)
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.tabWidget.addTab(self.tab_results, "")
 
         self.horizontalLayout_2.addWidget(self.tabWidget)
@@ -89,7 +93,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 799, 26))
+        self.menubar.setGeometry(QRect(0, 0, 815, 21))
         self.menuFichier = QMenu(self.menubar)
         self.menuFichier.setObjectName(u"menuFichier")
         self.menuEdition = QMenu(self.menubar)
@@ -146,9 +150,13 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(shortcut)
         self.actionOptions.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+O", None))
 #endif // QT_CONFIG(shortcut)
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_options), QCoreApplication.translate("MainWindow", u"Options de recherche", None))
+        self.actionSelection.setText(QCoreApplication.translate("MainWindow", u"S\u00e9lectionner", None))
+#if QT_CONFIG(tooltip)
+        self.actionSelection.setToolTip(QCoreApplication.translate("MainWindow", u"S\u00e9lectionner", None))
+#endif // QT_CONFIG(tooltip)
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_search), QCoreApplication.translate("MainWindow", u"Recherche", None))
 #if QT_CONFIG(whatsthis)
-        self.tabWidget.setTabWhatsThis(self.tabWidget.indexOf(self.tab_options), QCoreApplication.translate("MainWindow", u"Fen\u00eatre contenant les param\u00e8tres de la recherche de doublons.", None))
+        self.tabWidget.setTabWhatsThis(self.tabWidget.indexOf(self.tab_search), QCoreApplication.translate("MainWindow", u"Fen\u00eatre contenant les param\u00e8tres de la recherche de doublons.", None))
 #endif // QT_CONFIG(whatsthis)
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_results), QCoreApplication.translate("MainWindow", u"R\u00e9sultats", None))
         self.menuFichier.setTitle(QCoreApplication.translate("MainWindow", u"Fichier", None))

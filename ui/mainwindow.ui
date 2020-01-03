@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>799</width>
-    <height>514</height>
+    <width>815</width>
+    <height>531</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -59,7 +59,7 @@
       <property name="currentIndex">
        <number>0</number>
       </property>
-      <widget class="QWidget" name="tab_options">
+      <widget class="QWidget" name="tab_search">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
@@ -67,7 +67,7 @@
         </sizepolicy>
        </property>
        <attribute name="title">
-        <string>Options de recherche</string>
+        <string>Recherche</string>
        </attribute>
        <attribute name="whatsThis">
         <string>Fenêtre contenant les paramètres de la recherche de doublons.</string>
@@ -82,7 +82,7 @@
            </size>
           </property>
           <property name="contextMenuPolicy">
-           <enum>Qt::ActionsContextMenu</enum>
+           <enum>Qt::CustomContextMenu</enum>
           </property>
           <property name="frameShadow">
            <enum>QFrame::Plain</enum>
@@ -90,7 +90,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QListView" name="listView">
+         <widget class="QListWidget" name="listWidget_selected_directories">
           <property name="minimumSize">
            <size>
             <width>400</width>
@@ -105,6 +105,7 @@
        <attribute name="title">
         <string>Résultats</string>
        </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout"/>
       </widget>
      </widget>
     </item>
@@ -115,8 +116,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>799</width>
-     <height>26</height>
+     <width>815</width>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFichier">

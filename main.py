@@ -1,14 +1,17 @@
 import io, sys
 
-from PySide2.QtWidgets import QApplication, QFileSystemModel, QMainWindow, QMenu
-
-import qt.ui_mainwindow as mw
+from PySide2.QtWidgets import QAction, QApplication, QFileSystemModel, QListWidgetItem, QMainWindow, QMenu
 from PySide2.QtCore import QDir
+from PySide2.QtGui import QStandardItemModel
 
+import ui.ui_mainwindow as ui
 
-class AppUI(QMainWindow, mw.Ui_MainWindow):
+global dir_list
+
+class AppUI(QMainWindow, ui.Ui_MainWindow):
 
     def __init__(self):
+
         QMainWindow.__init__(self)
         self.setupUi(self)
 
@@ -24,16 +27,24 @@ class AppUI(QMainWindow, mw.Ui_MainWindow):
 
         self.actionSortie.triggered.connect(self.close)
 
+        global dir_list
+
+        for dir in dir_list:
+            self.listWidget_selected_directories.addItem(QListWidgetItem(dir))
+
+
 
     def openMenuDirectories(self, position):
 
         menu_os_directories = QMenu()
 
-        menu_os_directories.addAction(self.tr("Edit person"))
-        menu_os_directories.addAction(self.tr("Edit object/container"))
-        menu_os_directories.addAction(self.tr("Edit object"))
+        menu_add = QAction("Ajouter")
+        menu_os_directories.addAction(menu_add)
+        menu_dvlp = QAction("Développer")
+        menu_os_directories.addAction(menu_dvlp)
+        menu_ref = QAction("Actualiser")
+        menu_os_directories.addAction(menu_ref)
 
-        indexes = self.treeview_os_directories.selectedIndexes()
         menu_os_directories.exec_(self.treeview_os_directories.viewport().mapToGlobal(position))
 
 
@@ -41,7 +52,11 @@ class AppUI(QMainWindow, mw.Ui_MainWindow):
 if __name__ == "__main__":
 
     app = QApplication(sys.argv)
-    
+
+    dir_list = []
+    dir_list.append("D:\\tests")
+    dir_list.append("C:\\Users\\Janiko\\OneDrive\\Dev")
+
     wind = AppUI()
     wind.show()
     
