@@ -56,6 +56,9 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
       <property name="currentIndex">
        <number>0</number>
       </property>
@@ -75,9 +78,15 @@
        <layout class="QHBoxLayout" name="horizontalLayout_3">
         <item>
          <widget class="QTreeView" name="treeview_os_directories">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="minimumSize">
            <size>
-            <width>300</width>
+            <width>200</width>
             <height>200</height>
            </size>
           </property>
@@ -87,15 +96,48 @@
           <property name="frameShadow">
            <enum>QFrame::Plain</enum>
           </property>
+          <property name="showDropIndicator" stdset="0">
+           <bool>true</bool>
+          </property>
+          <property name="dragEnabled">
+           <bool>false</bool>
+          </property>
+          <property name="sortingEnabled">
+           <bool>true</bool>
+          </property>
+          <attribute name="headerShowSortIndicator" stdset="0">
+           <bool>true</bool>
+          </attribute>
          </widget>
         </item>
         <item>
          <widget class="QListWidget" name="listWidget_selected_directories">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="minimumSize">
            <size>
             <width>400</width>
             <height>200</height>
            </size>
+          </property>
+          <property name="contextMenuPolicy">
+           <enum>Qt::NoContextMenu</enum>
+          </property>
+          <property name="defaultDropAction">
+           <enum>Qt::IgnoreAction</enum>
+          </property>
+          <property name="movement">
+           <enum>QListView::Static</enum>
+          </property>
+          <property name="resizeMode">
+           <enum>QListView::Adjust</enum>
+          </property>
+          <property name="sortingEnabled">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
