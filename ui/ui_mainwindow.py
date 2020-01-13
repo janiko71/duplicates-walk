@@ -82,18 +82,24 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_3.addWidget(self.treeview_os_directories)
 
-        self.listWidget_selected_directories = QListWidget(self.tab_search)
-        self.listWidget_selected_directories.setObjectName(u"listWidget_selected_directories")
-        sizePolicy2.setHeightForWidth(self.listWidget_selected_directories.sizePolicy().hasHeightForWidth())
-        self.listWidget_selected_directories.setSizePolicy(sizePolicy2)
-        self.listWidget_selected_directories.setMinimumSize(QSize(400, 200))
-        self.listWidget_selected_directories.setContextMenuPolicy(Qt.NoContextMenu)
-        self.listWidget_selected_directories.setDefaultDropAction(Qt.IgnoreAction)
-        self.listWidget_selected_directories.setMovement(QListView.Static)
-        self.listWidget_selected_directories.setResizeMode(QListView.Adjust)
-        self.listWidget_selected_directories.setSortingEnabled(True)
+        self.tableWidget_selected_directories = QTableWidget(self.tab_search)
+        if (self.tableWidget_selected_directories.columnCount() < 3):
+            self.tableWidget_selected_directories.setColumnCount(3)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.tableWidget_selected_directories.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.tableWidget_selected_directories.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        __qtablewidgetitem2 = QTableWidgetItem()
+        self.tableWidget_selected_directories.setHorizontalHeaderItem(2, __qtablewidgetitem2)
+        self.tableWidget_selected_directories.setObjectName(u"tableWidget_selected_directories")
+        sizePolicy2.setHeightForWidth(self.tableWidget_selected_directories.sizePolicy().hasHeightForWidth())
+        self.tableWidget_selected_directories.setSizePolicy(sizePolicy2)
+        self.tableWidget_selected_directories.setMinimumSize(QSize(400, 200))
+        self.tableWidget_selected_directories.setContextMenuPolicy(Qt.NoContextMenu)
+        self.tableWidget_selected_directories.setDefaultDropAction(Qt.IgnoreAction)
+        self.tableWidget_selected_directories.setSortingEnabled(True)
 
-        self.horizontalLayout_3.addWidget(self.listWidget_selected_directories)
+        self.horizontalLayout_3.addWidget(self.tableWidget_selected_directories)
 
         self.tabWidget.addTab(self.tab_search, "")
         self.tab_results = QWidget()
@@ -168,6 +174,12 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.actionSelection.setToolTip(QCoreApplication.translate("MainWindow", u"S\u00e9lectionner", None))
 #endif // QT_CONFIG(tooltip)
+        ___qtablewidgetitem = self.tableWidget_selected_directories.horizontalHeaderItem(0)
+        ___qtablewidgetitem.setText(QCoreApplication.translate("MainWindow", u"R\u00e9pertoire", None));
+        ___qtablewidgetitem1 = self.tableWidget_selected_directories.horizontalHeaderItem(1)
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("MainWindow", u"Ma\u00eetre", None));
+        ___qtablewidgetitem2 = self.tableWidget_selected_directories.horizontalHeaderItem(2)
+        ___qtablewidgetitem2.setText(QCoreApplication.translate("MainWindow", u"Prot\u00e9g\u00e9", None));
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_search), QCoreApplication.translate("MainWindow", u"Recherche", None))
 #if QT_CONFIG(whatsthis)
         self.tabWidget.setTabWhatsThis(self.tabWidget.indexOf(self.tab_search), QCoreApplication.translate("MainWindow", u"Fen\u00eatre contenant les param\u00e8tres de la recherche de doublons.", None))

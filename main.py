@@ -1,4 +1,5 @@
 import io, sys
+import sqlite3
 
 from PySide2.QtWidgets import QAction, QApplication, QFileSystemModel, QListWidgetItem, QMainWindow, QMenu
 from PySide2.QtCore import QDir, Qt
@@ -26,11 +27,15 @@ class AppUI(QMainWindow, ui.Ui_MainWindow):
 
         # We only show the name/path
 
-        self.treeview_os_directories.setModel(treeModel)
-        self.treeview_os_directories.model().sort(1, order=Qt.DescendingOrder)
-        self.treeview_os_directories.hideColumn(1)
-        self.treeview_os_directories.hideColumn(2)
-        self.treeview_os_directories.hideColumn(3)
+        view = self.treeview_os_directories 
+        view.setModel(treeModel)
+        view.model().sort(1, order=Qt.DescendingOrder)
+        view.hideColumn(1)
+        view.hideColumn(2)
+        view.hideColumn(3)
+        view.setColumnWidth(0, 10)
+        view.setColumnWidth(1, 1)
+        view.setColumnWidth(2, 1)
 
         # Setting a contextual menu
 
@@ -80,7 +85,8 @@ class AppUI(QMainWindow, ui.Ui_MainWindow):
 
         for dir in sel_dir:
             dir_list.append(self.treeview_os_directories.model().filePath(dir))
-            self.listWidget_selected_directories.addItem(self.treeview_os_directories.model().filePath(dir))
+            #self.listWidget_selected_directories.addItem(self.treeview_os_directories.model().filePath(dir))
+            #tableWidget_selected_directories
 
 
 

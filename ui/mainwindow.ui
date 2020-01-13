@@ -111,7 +111,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QListWidget" name="listWidget_selected_directories">
+         <widget class="QTableWidget" name="tableWidget_selected_directories">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
@@ -130,15 +130,24 @@
           <property name="defaultDropAction">
            <enum>Qt::IgnoreAction</enum>
           </property>
-          <property name="movement">
-           <enum>QListView::Static</enum>
-          </property>
-          <property name="resizeMode">
-           <enum>QListView::Adjust</enum>
-          </property>
           <property name="sortingEnabled">
            <bool>true</bool>
           </property>
+          <column>
+           <property name="text">
+            <string>Répertoire</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Maître</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Protégé</string>
+           </property>
+          </column>
          </widget>
         </item>
        </layout>
