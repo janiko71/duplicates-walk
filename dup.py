@@ -271,6 +271,7 @@ def db_create(db):
                     pre_hash CHAR(256), \
                     path VARCHAR(4096), \
                     name TINYTEXT, \
+                    original_path VARCHAR(4096), \
                     size BIGINT, \
                     marked_for_deletion BOOL, \
                     protected BOOL, \
@@ -388,11 +389,43 @@ def checkpoint_db(cnx, last_step, last_id = None, commit = False):
 
 #
 #    ====================================================================
-#     Directory calculation (for all files)
+#     Directory calculation (for all files in many directories)
 #    ====================================================================
 #
 
-def directory_lookup(cnx, basepath):
+def directories_lookup(cnx, basepath_list):
+
+    t_elaps = 0.0
+    nb_files = 0
+
+    # As there's no restart point here (we restart the loop), we need to reset the filelist table
+
+    cnx.execute("DELETE FROM filelist")
+    cnx.commit()
+
+    for basepath in basepath_list:
+
+        line        = basepath.rstrip("\n").split(";")
+        p_master    = line[0]
+        p_protected = line[1]
+        path        = line[2]
+
+        print("Considering {}, master:{} protected:{}...".format(path, p_master, p_protected))
+        t, nb = directory_lookup(cnx, path, p_master, p_protected)
+        
+        t_elaps += t
+        nb_files += nb
+
+    return t_elaps, nb_files
+
+
+#
+#    ====================================================================
+#     Directory calculation (for all files in one directory)
+#    ====================================================================
+#
+
+def directory_lookup(cnx, basepath, master, protected):
 
     """
 
@@ -401,7 +434,7 @@ def directory_lookup(cnx, basepath):
 
         Args:
             cnx (sqlite3.Connection): Connection object
-            basepath (text): Path of the file system we will look into.
+            basepath (text): Array of file paths we will look into.
 
         Returns:
             t (time): The execution time of this function
@@ -423,11 +456,6 @@ def directory_lookup(cnx, basepath):
     if (basepath == ""):
         basepath = "."
 
-    # As there's no restart point here (we restart the loop), we need to reset the filelist table
-
-    cnx.execute("DELETE FROM filelist")
-    cnx.commit()
-
     #
     # ---> Files discovering. Thanks to Python, we just need to call an existing function...
     #
@@ -443,8 +471,8 @@ def directory_lookup(cnx, basepath):
             # Hey, we got one (file)!
 
             nb = nb + 1
-            cnx.execute("INSERT INTO filelist(path, name, access_denied)\
-                            VALUES (?, ?, ?)",(root, name, False))
+            cnx.execute("INSERT INTO filelist(path, name, access_denied, original_path, master, protected)\
+                            VALUES (?, ?, ?, ?, ?, ?)",(root, name, False, basepath, master, protected))
 
             # Checkpoint
 
@@ -558,7 +586,7 @@ def filelist_pre_hash(cnx, algo):
             last_step = "filelist_pre_hash"
             last_id = fid
 
-        except PermissionError:
+        except PermissionError as pe:
 
             #
             # Here we have an existing file but we have no right permission on it. Bad strike!
@@ -813,9 +841,9 @@ db = 'walk.db'
 algo = 'md5'
 
 with open("filelist.txt","r") as f:
-    basepath = f.read()
+    basepath = f.readlines()
 
-print(basepath)
+#print(basepath)
 print("Default blocksize for this system is {} bytes.".format(io.DEFAULT_BUFFER_SIZE))
 
 #
@@ -833,7 +861,7 @@ next_step = False
 
 if (last_step == None) | ((last_step == "directory_lookup") & (last_id == "in progress")):
 
-    t, nb = directory_lookup(cnx, basepath)
+    t, nb = directories_lookup(cnx, basepath)
     print("Files lookup duration: {:.2f} sec for {} files.".format(t, nb))
     next_step = True
 
