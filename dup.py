@@ -406,15 +406,18 @@ def directories_lookup(cnx, basepath_list):
     for basepath in basepath_list:
 
         line        = basepath.rstrip("\n").split(";")
-        p_master    = line[0]
-        p_protected = line[1]
-        path        = line[2]
 
-        print("Considering {}, master:{} protected:{}...".format(path, p_master, p_protected))
-        t, nb = directory_lookup(cnx, path, p_master, p_protected)
-        
-        t_elaps += t
-        nb_files += nb
+        if line[0] != '':
+
+            p_master    = line[0]
+            p_protected = line[1]
+            path        = line[2]
+
+            print("Considering {}, master:{} protected:{}...".format(path, p_master, p_protected))
+            t, nb = directory_lookup(cnx, path, p_master, p_protected)
+            
+            t_elaps += t
+            nb_files += nb
 
     return t_elaps, nb_files
 
