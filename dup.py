@@ -23,7 +23,7 @@ def exit_handler(signum, frame):
 
     print()
     print("Normal exit from KeyboardInterrupt (CTRL+C)")
-    checkpoint_db(cnx, last_step, last_id, commit = True)
+    utils.checkpoint_db(cnx, last_step, last_id, commit = True)
     exit(0)
 
 #
@@ -398,10 +398,16 @@ def directories_lookup(cnx, basepath_list):
     t_elaps = 0.0
     nb_files = 0
 
-    # As there's no restart point here (we restart the loop), we need to reset the filelist table
+    # We look for the directories already looked up
 
-    cnx.execute("DELETE FROM filelist")
-    cnx.commit()
+    completed_dir = []
+
+    res = cnx.execute("SELECT ALL value FROM params WHERE key = 'completed_dir'")
+
+    for dir_name in res:
+        completed_dir.append(dir_name[0])
+
+    # Loop over directories
 
     for basepath in basepath_list:
 
@@ -409,15 +415,22 @@ def directories_lookup(cnx, basepath_list):
 
         if line[0] != '':
 
-            p_master    = line[0]
-            p_protected = line[1]
-            path        = line[2]
+            p_master, p_protected, path = line
 
-            print("Considering {}, master:{} protected:{}...".format(path, p_master, p_protected))
-            t, nb = directory_lookup(cnx, path, p_master, p_protected)
-            
-            t_elaps += t
-            nb_files += nb
+            # If the directory has been completed, we skip it. Else, we restart the lookup from the beginning.
+
+            if (path not in completed_dir):
+
+                # Restart point here. We delete what has been done for this directory (for it has not been completed)
+                cnx.execute("DELETE FROM filelist WHERE original_path=?", (path,))
+                cnx.commit()
+
+
+                print("Considering {}, master:{} protected:{}...".format(path, p_master, p_protected))
+                t, nb = directory_lookup(cnx, path, p_master, p_protected)
+                
+                t_elaps += t
+                nb_files += nb
 
     return t_elaps, nb_files
 
@@ -487,7 +500,7 @@ def directory_lookup(cnx, basepath, master, protected):
             if ((nb % 100) == 0):
                 print("Discovering #{} files ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
                 if ((nb % 1000) == 0):
-                    checkpoint_db(cnx, "directory_lookup", commit = True)
+                    cnx.commit()
 
             """
             except PermissionError:
@@ -505,7 +518,7 @@ def directory_lookup(cnx, basepath, master, protected):
     # ---> Last commit
     #
 
-    checkpoint_db(cnx, "directory_lookup", "all", commit = True)
+    utils.checkpoint_db(cnx, "directory_lookup", basepath, commit = True)
 
     # End time
     chrono.stop()
@@ -615,13 +628,13 @@ def filelist_pre_hash(cnx, algo):
         if ((nb % 100) == 0):
             print("Quick hash computing #{} files ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
             if ((nb % 1000) == 0):
-                checkpoint_db(cnx, "filelist_pre_hash", fid, commit = True)
+                utils.checkpoint_db(cnx, "filelist_pre_hash", fid, commit = True)
 
     #
     #  ---> Last commit
     #
 
-    checkpoint_db(cnx, "filelist_pre_hash", "all", commit = True)
+    utils.checkpoint_db(cnx, "filelist_pre_hash", "all", commit = True)
 
     # End time
     chrono.stop()
@@ -705,13 +718,13 @@ def pre_duplicates_rehash(cnx):
             if ((nb % 100) == 0):
                 print("Rehashing duplicate candidates #{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
                 if ((nb % 1000) == 0):
-                    checkpoint_db(cnx, "pre_duplicates_rehash", fid, commit = True)
+                    utils.checkpoint_db(cnx, "pre_duplicates_rehash", fid, commit = True)
         
     #
     #  ---> Last commit
     #
     
-    checkpoint_db(cnx, "pre_duplicates_rehash", "all", commit = True)
+    utils.checkpoint_db(cnx, "pre_duplicates_rehash", "all", commit = True)
 
     # End time
     chrono.stop()
@@ -766,7 +779,7 @@ def duplicates_update(cnx):
     last_step = "pre_duplicates_rehash"
     last_id = "all"
 
-    checkpoint_db(cnx, "duplicates_update", "all", commit = True)
+    utils.checkpoint_db(cnx, "duplicates_update", "all", commit = True)
 
     # Results...
 

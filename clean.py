@@ -4,6 +4,8 @@ import time
 import sqlite3
 import signal
 
+import utils
+
 db = 'walk.db'
 
 
@@ -73,15 +75,15 @@ def find_for_deletion(db):
             to_be_deleted = True
             cnx.execute("UPDATE filelist SET marked_for_deletion = '1' WHERE fid=?", (fid, ))
 
-        # Commit sometimes
+        # Commit, sometimes
 
         if (nb_rec % 100) == 0:
-            cnx.commit()
+            utils.checkpoint_db(cnx, "mark_for_deletion", current_hash, commit = True)
 
         print(nb_rec, fid, hash, master, has_dup, to_be_deleted, path, name, orig_path)
 
     # Final commit
-    cnx.commit()
+    utils.checkpoint_db(cnx, "mark_for_deletion", "all", commit = True)
 
     # Ends connection
     cnx.close()

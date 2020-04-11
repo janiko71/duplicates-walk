@@ -86,11 +86,57 @@ class Chrono:
         return str(self)
 
 
-# -------------------------------
+
+#    -------------------------------
 #
-#  Some other useful functions
+#     Useful functions for the database
 #
-# -------------------------------
+#    -------------------------------
+
+#
+#    ====================================================================
+#     Set state of last (=current) step executed in the params table
+#    ====================================================================
+#
+
+def checkpoint_db(cnx, last_step, last_id = None, commit = False):
+
+    """
+
+        Sets the status of the current process by storing the name of the last well-executed step.
+
+        Args:  
+            cnx (sqlite3.Connection): Connection object
+            last_step (text): Name of the last well-executed step
+
+        Returns:
+            nothing
+
+    """
+
+
+    # We update the params table with the last well completed step
+
+    cnx.execute("UPDATE params SET value=? WHERE key='last_step'", (last_step,))
+    cnx.execute("UPDATE params SET value=? WHERE key='last_id'", (last_id,))
+
+    if last_step == "directory_lookup" and last_id != "in progress":
+
+        # Here we are in the 1st step (file lookup). Here we store the completed directories
+        cnx.execute("INSERT INTO params VALUES (?, ?)", ("completed_dir", last_id))
+
+    if (commit):
+        cnx.commit()
+
+    return 
+
+
+
+#    -------------------------------
+#
+#     Some other useful functions
+#
+#    -------------------------------
 
 def check_arguments(args):
 
