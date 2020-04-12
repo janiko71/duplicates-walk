@@ -6,6 +6,16 @@ import signal
 
 import utils
 
+from colorama import Fore, Back, Style 
+from colorama import init
+
+#
+#  Some constants
+#
+
+FMT_STR_CONSIDERING_DIR = "Considering " + Fore.LIGHTGREEN_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL + " (master:{}, protected:{})..."
+FMT_STR_COMPLETED_DIR = "Completed directory lookup for " + Fore.LIGHTGREEN_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL 
+
 #
 # 1. Discovering files
 # 2. Calculating quick hash (on the first 8192 bytes only)
@@ -348,6 +358,7 @@ def get_status(cnx):
     lid = cnx.execute("SELECT value FROM params WHERE key='last_id'").fetchone()
 
     if (lid != None):
+
         if (lid[0] == ''):
             lid= None
         else:
@@ -395,8 +406,18 @@ def checkpoint_db(cnx, last_step, last_id = None, commit = False):
 
 def directories_lookup(cnx, basepath_list):
 
+    """
+        Args:
+            cnx (sqlite3.Connection): Connection object
+            basepath (text): Array of file paths we will look into.
+
+        Returns:
+            t (time): The execution time of this function
+            nb_to_process (int): The number of files we have to process   
+
+    """
+                
     t_elaps = 0.0
-    nb_files = 0
 
     # We look for the directories already looked up
 
@@ -406,6 +427,7 @@ def directories_lookup(cnx, basepath_list):
 
     for dir_name in res:
         completed_dir.append(dir_name[0])
+        print(FMT_STR_COMPLETED_DIR.format(dir_name[0]))
 
     # Loop over directories
 
@@ -425,14 +447,17 @@ def directories_lookup(cnx, basepath_list):
                 cnx.execute("DELETE FROM filelist WHERE original_path=?", (path,))
                 cnx.commit()
 
-
-                print("Considering {}, master:{} protected:{}...".format(path, p_master, p_protected))
-                t, nb = directory_lookup(cnx, path, p_master, p_protected)
+                print(FMT_STR_CONSIDERING_DIR.format(path, bool(int(p_master)), bool(int(p_protected))))
+                t = directory_lookup(cnx, path, p_master, p_protected)
                 
                 t_elaps += t
-                nb_files += nb
 
-    return t_elaps, nb_files
+    # Returning nb of files to process in the table. Should be the same as nb...
+
+    r = cnx.execute("SELECT COUNT(*) FROM filelist")
+    nb_to_process = r.fetchone()[0]
+
+    return t_elaps, nb_to_process
 
 
 #
@@ -454,7 +479,6 @@ def directory_lookup(cnx, basepath, master, protected):
 
         Returns:
             t (time): The execution time of this function
-            nb_to_process (int): The number of files we have to process        
 
     """
 
@@ -523,12 +547,7 @@ def directory_lookup(cnx, basepath, master, protected):
     # End time
     chrono.stop()
 
-    # Returning nb of files to process in the table. Should be the same as nb...
-
-    r = cnx.execute("SELECT COUNT(*) FROM filelist")
-    nb_to_process = r.fetchone()[0]
-        
-    return chrono.elapsed(), nb_to_process
+    return chrono.elapsed()
 
 
 
@@ -574,12 +593,20 @@ def filelist_pre_hash(cnx, algo):
     #
     # ---> Main loop (on all files)
     #
+
+    res = cnx.execute("select count(fid) from filelist;")
+    nb_total = res.fetchone()[0]
     
-    nb = 0
     
     if (last_step != "filelist_pre_hash"):
+
+        nb = 0
         r = cnx.execute("SELECT * FROM filelist ORDER BY fid")
+
     else:
+
+        res = cnx.execute("SELECT count(fid) FROM filelist WHERE fid <=? ORDER BY fid", (last_id,))
+        nb = res.fetchone()[0]
         r = cnx.execute("SELECT * FROM filelist WHERE fid >? ORDER BY fid", (last_id,))
         print("Restart from fid {}".format(last_id))
 
@@ -626,7 +653,9 @@ def filelist_pre_hash(cnx, algo):
         # Displaying progression and commit (occasionnaly)
 
         if ((nb % 100) == 0):
-            print("Quick hash computing #{} files ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
+
+            perc = (nb / nb_total) * 100
+            print("Quick hash computing #{} files ({:.2f}%), {:.2f} sec".format(nb, perc, chrono.elapsed()), end="\r", flush=True)
             if ((nb % 1000) == 0):
                 utils.checkpoint_db(cnx, "filelist_pre_hash", fid, commit = True)
 
@@ -672,19 +701,34 @@ def pre_duplicates_rehash(cnx):
     #
     # ---> Selection of pre_hashes present more than once 
     #
-    
-    nb = 0
 
+    res = cnx.execute("SELECT count(fid) FROM filelist WHERE pre_hash IN (SELECT pre_hash FROM filelist GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY pre_hash);")
+    nb_total = res.fetchone()[0]
+    
     if (last_step != "pre_duplicates_rehash"):
 
         # Here we start from the beginning and read all the files in DB
-        res = cnx.execute("SELECT pre_hash FROM filelist GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY fid")
+        nb = 0
+        res = cnx.execute("SELECT pre_hash FROM filelist GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY pre_hash")
 
     else:
 
         # Checkpoint/restart : we restart from last updated record (fid)
-        res = cnx.execute("SELECT pre_hash FROM filelist WHERE fid >? GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY fid", (last_id,))
-        print("Restart from fid {}".format(last_id))
+
+        res = cnx.execute("SELECT count(fid) FROM filelist WHERE hash NOT NULL")
+        nb = res.fetchone()[0]
+
+        # Restart point
+
+        res = cnx.execute("SELECT pre_hash FROM filelist WHERE pre_hash >? GROUP BY pre_hash HAVING COUNT(pre_hash) > 1 ORDER BY pre_hash", (last_id,))
+        print("Restart from pre_hash {}".format(last_id))
+
+    # Progression 
+
+    last_d = 0
+    last_m = 0
+
+    # Loop...
 
     for h in res:
 
@@ -709,16 +753,24 @@ def pre_duplicates_rehash(cnx):
             # Checkpoint
             
             last_step = "pre_duplicates_rehash"
-            last_id = fid
+            last_id = hash
 
             nb = nb + 1
 
-            # Displaying progression and commit (occasionnaly)
+        # Displaying progression and commit (occasionnaly, but only when we get a new hash)
 
-            if ((nb % 100) == 0):
-                print("Rehashing duplicate candidates #{} ({:.2f} sec)".format(nb, chrono.elapsed()), end="\r", flush=True)
-                if ((nb % 1000) == 0):
-                    utils.checkpoint_db(cnx, "pre_duplicates_rehash", fid, commit = True)
+        d = nb // 100
+        m = nb // 1000
+
+        if (d != last_d):
+
+            last_d = d
+            perc = (nb / nb_total) * 100
+            print("Rehashing duplicate candidates #{} ({:.2f}%), {:.2f} sec".format(nb, perc, chrono.elapsed()), end="\r", flush=True)
+
+            if (m != last_m):
+                last_m = m
+                utils.checkpoint_db(cnx, "pre_duplicates_rehash", fid, commit = True)
         
     #
     #  ---> Last commit
@@ -832,6 +884,10 @@ def duplicates_select(cnx):
 #    ====================================================================
 #
 
+# Colorama init
+
+init()
+
 # 
 # ---> Check for 'restart' argument
 #
@@ -894,7 +950,7 @@ if (next_step |
     ((last_step == "filelist_pre_hash") & (last_id != "all"))):
 
     t = filelist_pre_hash(cnx, 'md5')
-    print("Pre-hash calculation duration: {:.2f} sec.          ".format(t))
+    print("Pre-hash calculation duration: {:.2f} sec.                  ".format(t))
     next_step = True
 
 else:
