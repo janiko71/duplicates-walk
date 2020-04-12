@@ -16,6 +16,8 @@ from colorama import init
 FMT_STR_CONSIDERING_DIR = "Considering " + Fore.LIGHTGREEN_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL + " (master:{}, protected:{})..."
 FMT_STR_COMPLETED_DIR = "Completed directory lookup for " + Fore.LIGHTGREEN_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL 
 
+
+
 #
 # 1. Discovering files
 # 2. Calculating quick hash (on the first 8192 bytes only)
@@ -23,6 +25,8 @@ FMT_STR_COMPLETED_DIR = "Completed directory lookup for " + Fore.LIGHTGREEN_EX +
 #
 # REMEMBER : Trust No-One. Filter and sanitize all fields and entries
 #
+
+db = utils.db_name
 
 restart = False
 last_step = None
@@ -884,120 +888,134 @@ def duplicates_select(cnx):
 #    ====================================================================
 #
 
-# Colorama init
 
-init()
+def main():
 
-# 
-# ---> Check for 'restart' argument
-#
+    # Colorama init
 
-arguments = utils.check_arguments(sys.argv)
+    init()
 
-if ("restart" in arguments):
-    restart = True
-else:
-    restart = False
+    # 
+    # ---> Check for 'restart' argument
+    #
 
-#
-# ---> Catch the exit signal to commit the database with last checkpoint
-#
+    arguments = utils.check_arguments(sys.argv)
 
-signal.signal(signal.SIGINT, exit_handler)
+    if ("restart" in arguments):
+        restart = True
+    else:
+        restart = False
 
-#
-# ---> Some inits
-#
+    #
+    # ---> Catch the exit signal to commit the database with last checkpoint
+    #
 
-db = 'walk.db'
-algo = 'md5'
+    signal.signal(signal.SIGINT, exit_handler)
 
-with open("filelist.txt","r") as f:
-    basepath = f.readlines()
+    #
+    # ---> Some inits
+    #
 
-#print(basepath)
-print("Default blocksize for this system is {} bytes.".format(io.DEFAULT_BUFFER_SIZE))
+    db = 'walk.db'
+    algo = 'md5'
 
-#
-# ---> DB connection
-#
+    with open("filelist.txt","r") as f:
+        basepath = f.readlines()
 
-cnx = db_connect(db, restart)
+    #print(basepath)
+    print("Default blocksize for this system is {} bytes.".format(io.DEFAULT_BUFFER_SIZE))
 
-last_step, last_id = get_status(cnx)
-print("Last step: {}, last ID: {}".format(last_step, last_id))
-next_step = False
+    #
+    # ---> DB connection
+    #
 
-# Looking for files
-# ---
+    cnx = db_connect(db, restart)
 
-if (last_step == None) | ((last_step == "directory_lookup") & (last_id == "in progress")):
+    last_step, last_id = get_status(cnx)
+    print("Last step: {}, last ID: {}".format(last_step, last_id))
+    next_step = False
 
-    t, nb = directories_lookup(cnx, basepath)
-    print("Files lookup duration: {:.2f} sec for {} files.".format(t, nb))
-    next_step = True
+    # Looking for files
+    # ---
 
-else:
+    if (last_step == None) | ((last_step == "directory_lookup") & (last_id == "in progress")):
 
-    print("Files lookup already done.")
+        t, nb = directories_lookup(cnx, basepath)
+        print("Files lookup duration: {:.2f} sec for {} files.".format(t, nb))
+        next_step = True
 
+    else:
 
-# Calculating pre hash (quick hash on first bytes)
-# ---
-
-if (next_step | 
-    ((last_step == "directory_lookup") & (last_id == "all"))|
-    ((last_step == "filelist_pre_hash") & (last_id != "all"))):
-
-    t = filelist_pre_hash(cnx, 'md5')
-    print("Pre-hash calculation duration: {:.2f} sec.                  ".format(t))
-    next_step = True
-
-else:
-
-    print("Pre-hash calculation already done.")
+        print("Files lookup already done.")
 
 
-# Calculate size of all files
-# ---
+    # Calculating pre hash (quick hash on first bytes)
+    # ---
 
-res = cnx.execute("select sum(size) FROM filelist")
-size = res.fetchone()[0]
+    if (next_step | 
+        ((last_step == "directory_lookup") & (last_id == "all"))|
+        ((last_step == "filelist_pre_hash") & (last_id != "all"))):
 
-print("Size of all files: {}".format(utils.humanbytes(size)))
+        t = filelist_pre_hash(cnx, 'md5')
+        print("Pre-hash calculation duration: {:.2f} sec.                  ".format(t))
+        next_step = True
 
-# Recomputing hashes for duplicates candidates
-# ---
+    else:
 
-if (next_step | 
-    ((last_step == "filelist_pre_hash") & (last_id == "all")) |
-    ((last_step == "pre_duplicates_rehash") & (last_id != "all"))):
-
-    t, nb = pre_duplicates_rehash(cnx)
-    print("Pre-duplicates rehashing duration: {:.2f} sec. for {} records.".format(t, nb))
-    next_step = True
-
-else:
-
-    print("Pre-duplicates rehashing already done.")
-
-# Dealing with duplicates
-# ---
-
-if (next_step | (last_step == "pre_duplicates_rehash")):
-    
-    t, nb_dup, size_dup = duplicates_update(cnx)
-
-else:
-
-    nb_dup, size_dup = duplicates_select(cnx)
-
-# Result summary
-# ---
-print("{} files have duplicates, total size of duplicate files is {}.".format(nb_dup, utils.humanbytes(size_dup)))
+        print("Pre-hash calculation already done.")
 
 
-# Closing database
-# ---
+    # Calculate size of all files
+    # ---
 
-cnx.close()
+    res = cnx.execute("select sum(size) FROM filelist")
+    size = res.fetchone()[0]
+
+    print("Size of all files: {}".format(utils.humanbytes(size)))
+
+    # Recomputing hashes for duplicates candidates
+    # ---
+
+    if (next_step | 
+        ((last_step == "filelist_pre_hash") & (last_id == "all")) |
+        ((last_step == "pre_duplicates_rehash") & (last_id != "all"))):
+
+        t, nb = pre_duplicates_rehash(cnx)
+        print("Pre-duplicates rehashing duration: {:.2f} sec. for {} records.".format(t, nb))
+        next_step = True
+
+    else:
+
+        print("Pre-duplicates rehashing already done.")
+
+    # Dealing with duplicates
+    # ---
+
+    if (next_step | (last_step == "pre_duplicates_rehash")):
+        
+        t, nb_dup, size_dup = duplicates_update(cnx)
+
+    else:
+
+        nb_dup, size_dup = duplicates_select(cnx)
+
+    # Result summary
+    # ---
+    print("{} files have duplicates, total size of duplicate files is {}.".format(nb_dup, utils.humanbytes(size_dup)))
+
+
+    # Closing database
+    # ---
+
+    cnx.close()
+
+    return
+
+
+# -------------------------------------------
+#  main call
+# -------------------------------------------
+
+if __name__ == '__main__':
+
+    main()

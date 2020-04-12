@@ -1,5 +1,10 @@
 import time
 
+#
+#  Gloabl constants
+#
+
+db_name = "walk.db"
 
 #    -------------------------------
 #

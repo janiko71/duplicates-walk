@@ -6,7 +6,9 @@ import signal
 
 import utils
 
-db = 'walk.db'
+from colorama import Fore, Back, Style 
+
+db = utils.db_name
 
 
 def find_for_deletion(db):
@@ -39,8 +41,7 @@ def find_for_deletion(db):
     to_be_deleted = False
     has_master = False
 
-    # Nb of records to delete
-
+    # Nb of records read
     nb_rec = 0
 
     # Now fetching the DB
@@ -61,7 +62,7 @@ def find_for_deletion(db):
             current_hash = hash 
             has_master = False
             to_be_deleted = False
-            print('-'*50)
+            #print('-'*50)
         
         # We've found a file in a master directory
 
@@ -80,23 +81,46 @@ def find_for_deletion(db):
         if (nb_rec % 100) == 0:
             utils.checkpoint_db(cnx, "mark_for_deletion", current_hash, commit = True)
 
-        print(nb_rec, fid, hash, master, has_dup, to_be_deleted, path, name, orig_path)
+        #print(nb_rec, fid, hash, master, has_dup, to_be_deleted, path, name, orig_path)
 
     # Final commit
     utils.checkpoint_db(cnx, "mark_for_deletion", "all", commit = True)
+
+    # Nb of marked files
+    res = cnx.execute("SELECT count(fid) FROM filelist WHERE marked_for_deletion = '1'")
+    nb = res.fetchone()[0]
+
+    # Size of marked files
+    res = cnx.execute("SELECT SUM(size) FROM filelist WHERE marked_for_deletion = '1'")
+    size = res.fetchone()[0]
 
     # Ends connection
     cnx.close()
 
     # Returns number of records to delete
-    return nb_rec
+    return nb, size
+
+#
+# Some constants
+#
+
+FMT_STR_MARKED_FILES = Fore.LIGHTWHITE_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL \
+                         + " files marked for deletion, total size is " + Fore.LIGHTWHITE_EX + Style.DIM + "{}"  + Fore.RESET + Style.RESET_ALL + "."
+               
+def main():
+
+    nb, size = find_for_deletion(db)
+
+    print(FMT_STR_MARKED_FILES.format(nb, utils.humanbytes(size)))
+
+    return
 
 
-                
+
 # -------------------------------------------
 #  main call
 # -------------------------------------------
 
 if __name__ == '__main__':
-    find_for_deletion(db)
-    
+
+    main()
