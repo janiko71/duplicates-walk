@@ -8,6 +8,7 @@ filelist.txt
 test*.py
 tests/
 qt/__pycache__/
+*.txt
 
 # Database
 *.db
@@ -138,4 +139,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-filelist - Copie.txt
+
