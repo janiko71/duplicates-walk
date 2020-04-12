@@ -17,7 +17,6 @@ FMT_STR_CONSIDERING_DIR = "Considering " + Fore.LIGHTGREEN_EX + Style.DIM + "{}"
 FMT_STR_COMPLETED_DIR = "Completed directory lookup for " + Fore.LIGHTGREEN_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL 
 
 
-
 #
 # 1. Discovering files
 # 2. Calculating quick hash (on the first 8192 bytes only)
@@ -26,7 +25,13 @@ FMT_STR_COMPLETED_DIR = "Completed directory lookup for " + Fore.LIGHTGREEN_EX +
 # REMEMBER : Trust No-One. Filter and sanitize all fields and entries
 #
 
+#
+# ---> Some inits
+#
+
+algo = utils.hash_algo
 db = utils.db_name
+filelist = utils.filelist_name
 
 restart = False
 last_step = None
@@ -293,7 +298,9 @@ def db_create(db):
                     master BOOL, \
                     has_duplicate BOOL, \
                     os_errno TINYINT, \
-                    os_strerror TEXT) \
+                    os_strerror TEXT, \
+                    trashed BOOL, \
+                    delete_error TINYINT) \
                 ")
 
     # ---> Some useful indexes to speed up the processing
@@ -913,13 +920,10 @@ def main():
     signal.signal(signal.SIGINT, exit_handler)
 
     #
-    # ---> Some inits
+    # ---> Read the directory files list
     #
 
-    db = 'walk.db'
-    algo = 'md5'
-
-    with open("filelist.txt","r") as f:
+    with open(filelist, "r") as f:
         basepath = f.readlines()
 
     #print(basepath)

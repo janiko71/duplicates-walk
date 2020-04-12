@@ -1,10 +1,14 @@
 import time
 
 #
-#  Gloabl constants
+#  Global constants
 #
 
-db_name = "walk.db"
+db_name       = "walk.db"
+filelist_name = "filelist.txt"
+hash_algo     = "md5"
+trash_dir     = "d:\\trash"
+
 
 #    -------------------------------
 #
