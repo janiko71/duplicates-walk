@@ -1,5 +1,5 @@
 # duplicates
-Helps removing duplicates files in yuor filesystem.
+Helps removing duplicates files in your filesystem. 
 # How it works?
 In a few words: it scans directories, store the file names and information in a ```sqlite3``` database (file), looks for duplicates and put the unwanted files in a "trash".
 ## First phase
