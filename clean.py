@@ -44,6 +44,18 @@ def exit_handler(signum, frame):
     
     exit(0)
 
+
+#
+# ---
+#
+
+def restart_clean(db):
+
+    cnx = sqlite3.connect(db)
+    cnx.execute("UPDATE filelist SET trashed=NULL, marked_for_deletion=NULL")
+    cnx.commit()
+    cnx.close()
+
 #
 # ---
 #
@@ -175,7 +187,7 @@ def move_files(db):
 
     # Selecting files to delete
 
-    res = cnx.execute("SELECT * FROM filelist WHERE marked_for_deletion='1'")
+    res = cnx.execute("SELECT * FROM filelist WHERE (marked_for_deletion = '1') AND (trashed IS NULL)")
 
     # Start time
     chrono = utils.Chrono()
@@ -186,12 +198,13 @@ def move_files(db):
     nb_trash = 0
     nb_fail = 0
     nb = 0
+    size_deleted = 0
 
     for row in res:
 
         nb = nb + 1
 
-        fid, hash, _, path, name, orig_path, _, _, _, _, master, has_dup, _, _, _, _ = row
+        fid, hash, _, path, name, orig_path, size, _, _, _, master, has_dup, _, _, _, _ = row
 
         original_file = os.path.join(path, name)
         rel_path = os.path.relpath(path, orig_path)
@@ -201,8 +214,10 @@ def move_files(db):
         try:
             if not(os.path.exists(trash_file_path)):
                 os.makedirs(trash_file_path)
-            shutil.copy2(original_file, copy_file)
+            # --- shutil.copy2(original_file, copy_file)
+            shutil.move(original_file, copy_file)
             nb_trash = nb_trash + 1
+            size_deleted = size_deleted + size
             cnx.execute("UPDATE filelist SET trashed='1', delete_error=NULL WHERE fid = ?", (fid, ))
 
         except OSError as ose:
@@ -216,7 +231,7 @@ def move_files(db):
 
         if ((nb % 10) == 0):
 
-            perc = ((nb_trash + nb_fail) / nb_to_delete) * 100
+            perc = ((nb_trash + nb_fail) / nb_remaining) * 100
             print(FMT_STR_TRASH_PROCESSING.format(nb_trash, nb_fail, perc, chrono.elapsed()), end="\r", flush=True)
             cnx.commit()
             if ((nb % 1000) == 0):
@@ -226,7 +241,7 @@ def move_files(db):
     cnx.commit()
     cnx.close()
 
-    return nb_trash, nb_fail, 0
+    return nb_trash, nb_fail, size_deleted
 
 
 
@@ -237,6 +252,15 @@ def move_files(db):
 #
                
 def main():
+
+    # 
+    # ---> Check for 'restart' argument
+    #
+
+    arguments = utils.check_arguments(sys.argv)
+
+    if ("restart" in arguments):
+        restart_clean(db)
 
     #
     # ---> Catch the exit signal to commit the database with last checkpoint
@@ -255,6 +279,7 @@ def main():
     #
     # --> Deleting/Trashing files
     #
+
     nb_trash, nb_fail, size = move_files(db)
 
     print(FMT_STR_TRASHED_FILES.format(nb_trash, trash, utils.humanbytes(size)))
