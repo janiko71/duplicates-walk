@@ -7,7 +7,7 @@ import time
 db_name       = "walk.db"
 filelist_name = "filelist.txt"
 hash_algo     = "md5"
-trash_dir     = "d:\\trash"
+trash_dir     = "C:\\Users\\Janiko\\OneDrive\\trash"
 
 
 #    -------------------------------

@@ -13,17 +13,19 @@ from colorama import Fore, Back, Style
 # Some constants
 #
 
-FMT_STR_MARKED_FILES = Fore.LIGHTWHITE_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL \
-                        + " files marked for deletion, total size is " + Fore.LIGHTWHITE_EX + Style.DIM + "{}"  + Fore.RESET + Style.RESET_ALL + "."
+FMT_HIGH = Fore.LIGHTWHITE_EX + Style.DIM
+FMT_RESET =  Fore.RESET + Style.RESET_ALL
+FMT_STR_MARKED_FILES = FMT_HIGH + "{}" + FMT_RESET \
+                        + " files marked for deletion, total size is " + FMT_HIGH + "{}"  + FMT_RESET + "."
 
-FMT_STR_TRASH_PROCESSING = Fore.LIGHTWHITE_EX + Style.DIM + "  {}"+ Fore.RESET + Style.RESET_ALL + " files trashed, " \
-                        + Fore.LIGHTWHITE_EX + Style.DIM + "{}"+ Fore.RESET + Style.RESET_ALL + " files in error, progression " \
-                        + Fore.LIGHTWHITE_EX + Style.DIM + "{:.2f}"+ Fore.RESET + Style.RESET_ALL + "%, elapsed " \
-                        + Fore.LIGHTWHITE_EX + Style.DIM + "{:.2f}" + Fore.RESET + Style.RESET_ALL + " sec"
+FMT_STR_TRASH_PROCESSING = FMT_HIGH + "  {}"+ FMT_RESET + " files trashed, " \
+                        + FMT_HIGH + "{}"+ FMT_RESET + " files in error, progression " \
+                        + FMT_HIGH + "{:.2f}"+ FMT_RESET + "%, elapsed " \
+                        + FMT_HIGH + "{:.2f}" + FMT_RESET + " sec"
 
-FMT_STR_TRASHED_FILES = Fore.LIGHTWHITE_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL \
-                        + " files put in trash directory (" + Fore.LIGHTWHITE_EX + Style.DIM + "{}" + Fore.RESET + Style.RESET_ALL \
-                        + "), total size is " + Fore.LIGHTWHITE_EX + Style.DIM + "{}"  + Fore.RESET + Style.RESET_ALL + "." + " "*30
+FMT_STR_TRASHED_FILES = FMT_HIGH + "{}" + FMT_RESET \
+                        + " files put in trash directory (" + FMT_HIGH + "{}" + FMT_RESET \
+                        + "), total size is " + FMT_HIGH + "{}"  + FMT_RESET + "." + " "*30
 #
 # Some init
 #
@@ -161,7 +163,15 @@ def move_files(db):
 
     res = cnx.execute("SELECT count(fid) FROM filelist WHERE marked_for_deletion = '1'")
     nb_to_delete = res.fetchone()[0]
-    print("Remaining files to delete/trash: ", nb_to_delete)
+    str_fmt = FMT_HIGH + "{}" + FMT_RESET + " files to delete/trash (total)."
+    print(str_fmt.format(nb_to_delete))
+
+    # Remaining files to delete
+
+    res = cnx.execute("SELECT count(fid) FROM filelist WHERE (marked_for_deletion = '1') AND (trashed IS NULL);")
+    nb_remaining = res.fetchone()[0]
+    str_fmt = FMT_HIGH + "{}" + FMT_RESET + " remaining files to delete/trash."
+    print(str_fmt.format(nb_remaining))
 
     # Selecting files to delete
 
